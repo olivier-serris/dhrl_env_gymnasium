@@ -5,13 +5,13 @@ import tempfile
 import xml.etree.ElementTree as ET
 import math
 import numpy as np
-import gym
+import gymnasium as gym
 
 
 APPLE = 0
 BOMB = 1
 
-MODEL_DIR = 'envs/assets'
+MODEL_DIR = "envs/assets"
 
 
 class GatherEnv(gym.Env):
@@ -19,19 +19,20 @@ class GatherEnv(gym.Env):
     ORI_IND = None
 
     def __init__(
-            self,
-            n_apples=8,
-            n_bombs=8,
-            activity_range=10.,
-            robot_object_spacing=2.,
-            catch_range=1.,
-            n_bins=10,
-            sensor_range=6.,
-            sensor_span=2*math.pi,
-            coef_inner_rew=0.,
-            dying_cost=-10,
-            seed=0,
-            *args, **kwargs
+        self,
+        n_apples=8,
+        n_bombs=8,
+        activity_range=10.0,
+        robot_object_spacing=2.0,
+        catch_range=1.0,
+        n_bins=10,
+        sensor_range=6.0,
+        sensor_span=2 * math.pi,
+        coef_inner_rew=0.0,
+        dying_cost=-10,
+        seed=0,
+        *args,
+        **kwargs
     ):
         self.n_apples = n_apples
         self.n_bombs = n_bombs
@@ -53,35 +54,49 @@ class GatherEnv(gym.Env):
         xml_path = osp.join(MODEL_DIR, model_cls.FILE)
         tree = ET.parse(xml_path)
         worldbody = tree.find(".//worldbody")
-        attrs = dict(
-            type="box", conaffinity="1", rgba="0.8 0.9 0.8 1", condim="3"
-        )
+        attrs = dict(type="box", conaffinity="1", rgba="0.8 0.9 0.8 1", condim="3")
         walldist = self.activity_range + 1
         ET.SubElement(
-            worldbody, "geom", dict(
+            worldbody,
+            "geom",
+            dict(
                 attrs,
                 name="wall1",
                 pos="0 -%d 0" % walldist,
-                size="%d.5 0.5 1" % walldist))
+                size="%d.5 0.5 1" % walldist,
+            ),
+        )
         ET.SubElement(
-            worldbody, "geom", dict(
+            worldbody,
+            "geom",
+            dict(
                 attrs,
                 name="wall2",
                 pos="0 %d 0" % walldist,
-                size="%d.5 0.5 1" % walldist))
+                size="%d.5 0.5 1" % walldist,
+            ),
+        )
         ET.SubElement(
-            worldbody, "geom", dict(
+            worldbody,
+            "geom",
+            dict(
                 attrs,
                 name="wall3",
                 pos="-%d 0 0" % walldist,
-                size="0.5 %d.5 1" % walldist))
+                size="0.5 %d.5 1" % walldist,
+            ),
+        )
         ET.SubElement(
-            worldbody, "geom", dict(
+            worldbody,
+            "geom",
+            dict(
                 attrs,
                 name="wall4",
                 pos="%d 0 0" % walldist,
-                size="0.5 %d.5 1" % walldist))
-        _, file_path = tempfile.mkstemp(text=True, suffix='.xml')
+                size="0.5 %d.5 1" % walldist,
+            ),
+        )
+        _, file_path = tempfile.mkstemp(text=True, suffix=".xml")
         tree.write(file_path)
 
         self.wrapped_env = model_cls(*args, file_path=file_path, seed=seed, **kwargs)
@@ -91,12 +106,10 @@ class GatherEnv(gym.Env):
         self.objects = []
         existing = set()
         while len(self.objects) < self.n_apples:
-            x = self.rng.randint(-self.activity_range / 2,
-                                  self.activity_range / 2) * 2
-            y = self.rng.randint(-self.activity_range / 2,
-                                  self.activity_range / 2) * 2
+            x = self.rng.randint(-self.activity_range / 2, self.activity_range / 2) * 2
+            y = self.rng.randint(-self.activity_range / 2, self.activity_range / 2) * 2
             # regenerate, since it is too close to the robot's initial position
-            if x ** 2 + y ** 2 < self.robot_object_spacing ** 2:
+            if x**2 + y**2 < self.robot_object_spacing**2:
                 continue
             if (x, y) in existing:
                 continue
@@ -104,12 +117,10 @@ class GatherEnv(gym.Env):
             self.objects.append((x, y, typ))
             existing.add((x, y))
         while len(self.objects) < self.n_apples + self.n_bombs:
-            x = self.rng.randint(-self.activity_range / 2,
-                                  self.activity_range / 2) * 2
-            y = self.rng.randint(-self.activity_range / 2,
-                                  self.activity_range / 2) * 2
+            x = self.rng.randint(-self.activity_range / 2, self.activity_range / 2) * 2
+            y = self.rng.randint(-self.activity_range / 2, self.activity_range / 2) * 2
             # regenerate, since it is too close to the robot's initial position
-            if x ** 2 + y ** 2 < self.robot_object_spacing ** 2:
+            if x**2 + y**2 < self.robot_object_spacing**2:
                 continue
             if (x, y) in existing:
                 continue
@@ -125,10 +136,15 @@ class GatherEnv(gym.Env):
         self.t += 1
 
         _, inner_rew, done, info = self.wrapped_env.step(action)
-        info['inner_rew'] = inner_rew
-        info['outer_rew'] = 0
+        info["inner_rew"] = inner_rew
+        info["outer_rew"] = 0
         if done:
-            return self.get_current_obs(), self.dying_cost, done, info  # give a -10 rew if the robot dies
+            return (
+                self.get_current_obs(),
+                self.dying_cost,
+                done,
+                info,
+            )  # give a -10 rew if the robot dies
         com = self.wrapped_env.get_body_com("torso")
         x, y = com[:2]
         reward = self.coef_inner_rew * inner_rew
@@ -136,13 +152,13 @@ class GatherEnv(gym.Env):
         for obj in self.objects:
             ox, oy, typ = obj
             # object within zone!
-            if (ox - x) ** 2 + (oy - y) ** 2 < self.catch_range ** 2:
+            if (ox - x) ** 2 + (oy - y) ** 2 < self.catch_range**2:
                 if typ == APPLE:
                     reward = reward + 1
-                    info['outer_rew'] = 1
+                    info["outer_rew"] = 1
                 else:
                     reward = reward - 1
-                    info['outer_rew'] = -1
+                    info["outer_rew"] = -1
             else:
                 new_objs.append(obj)
         self.objects = new_objs
@@ -158,8 +174,8 @@ class GatherEnv(gym.Env):
         # sort objects by distance to the robot, so that farther objects'
         # signals will be occluded by the closer ones'
         sorted_objects = sorted(
-            self.objects, key=lambda o:
-            (o[0] - robot_x) ** 2 + (o[1] - robot_y) ** 2)[::-1]
+            self.objects, key=lambda o: (o[0] - robot_x) ** 2 + (o[1] - robot_y) ** 2
+        )[::-1]
         # fill the readings
         bin_res = self.sensor_span / self.n_bins
 
@@ -173,7 +189,9 @@ class GatherEnv(gym.Env):
                 continue
             angle = math.atan2(oy - robot_y, ox - robot_x) - ori
             if math.isnan(angle):
-                import ipdb; ipdb.set_trace()
+                import ipdb
+
+                ipdb.set_trace()
             angle = angle % (2 * math.pi)
             if angle > math.pi:
                 angle = angle - 2 * math.pi
@@ -198,7 +216,9 @@ class GatherEnv(gym.Env):
         # return sensor data along with data about itself
         self_obs = self.wrapped_env._get_obs()
         apple_readings, bomb_readings = self.get_readings()
-        return np.concatenate([self_obs, apple_readings, bomb_readings] + [[self.t * 0.01]])
+        return np.concatenate(
+            [self_obs, apple_readings, bomb_readings] + [[self.t * 0.01]]
+        )
 
     @property
     def observation_space(self):
@@ -245,12 +265,14 @@ class GatherEnv(gym.Env):
         if self.wrapped_env.viewer:
             self.wrapped_env.viewer.finish()
 
-    def render(self, mode='human', close=False):
-        if mode == 'rgb_array':
+    def render(self, mode="human", close=False):
+        if mode == "rgb_array":
             self.get_viewer().render()
             data, width, height = self.get_viewer().get_image()
-            return np.fromstring(data, dtype='uint8').reshape(height, width, 3)[::-1,:,:]
-        elif mode == 'human':
+            return np.fromstring(data, dtype="uint8").reshape(height, width, 3)[
+                ::-1, :, :
+            ]
+        elif mode == "human":
             self.get_viewer()
             self.wrapped_env.render()
         if close:
@@ -262,7 +284,7 @@ class GatherEnv(gym.Env):
         back to the default based on the ORI_IND specified in Maze (not accurate for quaternions)
         """
         obj = self.wrapped_env
-        while not hasattr(obj, 'get_ori') and hasattr(obj, 'wrapped_env'):
+        while not hasattr(obj, "get_ori") and hasattr(obj, "wrapped_env"):
             obj = obj.wrapped_env
         return obj.get_ori()
         # try:

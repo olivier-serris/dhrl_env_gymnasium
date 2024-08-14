@@ -20,9 +20,9 @@ import tempfile
 import xml.etree.ElementTree as ET
 import math
 import numpy as np
-import gym
+import gymnasium as gym
 
-from dhrl_env_gymnasium.antenv import maze_env_utils
+from envs.antenv import maze_env_utils
 
 
 # Directory that contains mujoco xml files.
@@ -281,3 +281,6 @@ class MazeEnv(gym.Env):
         next_obs = self._get_obs()
         done = False
         return next_obs, inner_reward, done, info
+
+    def seed(self, seed):
+        self.rng = np.random.RandomState(seed)
